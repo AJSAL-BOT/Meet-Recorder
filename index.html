@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Google Meet Recorder</title>
+  <style>
+    body {
+      background: #0a0a23;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    video {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 800px;
+      border: 2px solid #00f0ff;
+      border-radius: 10px;
+    }
+    button {
+      padding: 10px 25px;
+      font-size: 18px;
+      background: #00f0ff;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    #timer {
+      font-size: 20px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📹 Google Meet Recorder</h1>
+  <div>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+  </div>
+  <div id="timer">Recording Time: 00:00</div>
+  <video id="preview" autoplay muted></video>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    let startTime;
+    let timerInterval;
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const videoPreview = document.getElementById("preview");
+    const timerDisplay = document.getElementById("timer");
+
+    startBtn.onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: "screen" },
+          audio: true
+        });
+
+        videoPreview.srcObject = stream;
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, {
+            type: "video/webm"
+          });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "recorded-meet.webm";
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        mediaRecorder.start();
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        startTime = Date.now();
+
+        timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const mins = String(Math.floor(elapsed / 60)).padStart(2, "0");
+          const secs = String(elapsed % 60).padStart(2, "0");
+          timerDisplay.textContent = `Recording Time: ${mins}:${secs}`;
+        }, 1000);
+
+      } catch (err) {
+        alert("Screen recording failed: " + err);
+        console.error(err);
+      }
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      videoPreview.srcObject.getTracks().forEach(track => track.stop());
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      clearInterval(timerInterval);
+      timerDisplay.textContent = "Recording stopped.";
+    };
+  </script>
+</body>
+</html>
